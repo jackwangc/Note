@@ -1,5 +1,3 @@
----
-
 ## 🚀 PTO 算子精度问题定位与修复总结报告(gemmi3 fast 模式)
 
 ### 一、 问题现象
@@ -78,6 +76,42 @@
 
 既然 PTO 精度已经调通，你可以尝试**去掉一些不必要的 `pipe_barrier(PIPE_ALL)**`，将其替换为 `PIPE_V` 甚至去掉，观察性能（TPS）是否有大幅提升，同时保持精度不变。
 
+----
+
+
+
+
 需要我帮你分析一下哪些位置的 Barrier 是可以优化的吗？
 
 ---
+
+        {
+        pipe_barrier(PIPE_ALL);
+        auto coeff_ub_scalar = coeff_ub.GetValue((i_2 * 4));
+        pipe_barrier(PIPE_ALL);
+        tl::ascend_pto::binarys_tile<tl::ascend_pto::BinaryOps::TMULS, float, 512, 512>(66304, 66304, (i_2 * 512), (i_2 * 512), 4, coeff_ub_scalar);
+        }
+        pipe_barrier(PIPE_V);
+        {
+        pipe_barrier(PIPE_ALL);
+        auto coeff_ub_scalar = coeff_ub.GetValue(((i_2 * 4) + 1));
+        pipe_barrier(PIPE_ALL);
+        tl::ascend_pto::binarys_tile<tl::ascend_pto::BinaryOps::TMULS, float, 512, 512>(66304, 66304, ((i_2 * 512) + 128), ((i_2 * 512) + 128), 4, coeff_ub_scalar);
+        }
+        pipe_barrier(PIPE_V);
+        {
+        pipe_barrier(PIPE_ALL);
+        auto coeff_ub_scalar = coeff_ub.GetValue(((i_2 * 4) + 2));
+        pipe_barrier(PIPE_ALL);
+        tl::ascend_pto::binarys_tile<tl::ascend_pto::BinaryOps::TMULS, float, 512, 512>(66304, 66304, ((i_2 * 512) + 256), ((i_2 * 512) + 256), 4, coeff_ub_scalar);
+        }
+        pipe_barrier(PIPE_V);
+        {
+        pipe_barrier(PIPE_ALL);
+        auto coeff_ub_scalar = coeff_ub.GetValue(((i_2 * 4) + 3));
+        pipe_barrier(PIPE_ALL);
+        tl::ascend_pto::binarys_tile<tl::ascend_pto::BinaryOps::TMULS, float, 512, 512>(66304, 66304, ((i_2 * 512) + 384), ((i_2 * 512) + 384), 4, coeff_ub_scalar);
+        }
+
+
+        tl::ascend_pto::copy_gm_to_ub<half, half, 1, 1, 1, 64, 128, 1, 128 * 128 * 32, 128 * 128, 128, 1, 64, 128>(workspace_1_handle + ((cid * 16384)), u_ub_half);
