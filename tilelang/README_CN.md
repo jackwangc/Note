@@ -381,7 +381,7 @@ benchmark/
 ```mermaid
 graph TB
     subgraph "用户层"
-        A[用户代码<br/>examples/*.py] --> B[@tilelang.jit<br/>装饰器]
+        A["用户代码 examples/*.py"] --> B["@tilelang.jit装饰器"]
     end
 
     subgraph "Python DSL 层<br/>tilelang/"
