@@ -597,4 +597,75 @@ void CodeGenTileLangAscendPto::BinaryVecOpsCodegen(const CallNode *op,
   } 
 }
 ```
+----
+
+## dump_tensor support
+
+```
+# 424
+        bool only_in_ascend_copy = false;
+        if (!use_info->used_in_cube) {
+          bool only_valid_funcs = true;
+          for (const auto& func_name : use_info->func_names) {
+            if (func_name != "tl.ascend_copy" && func_name != "tl.ascend_dump_tensor") {
+              only_valid_funcs = false;
+              break;
+            }
+          }
+          if (only_valid_funcs) {
+            only_in_ascend_copy = true;
+          }
+        }
+
+# 472
+        bool has_dump_tensor = false;
+        if (use_info) {
+          for (const auto& func : use_info->func_names) {
+            if (func == "tl.ascend_dump_tensor" || func == "tl.dump_tensor") {
+              has_dump_tensor = true;
+              break;
+            }
+          }
+        }
+
+        bool should_apply = false;
+        if (has_dump_tensor && alloc_info->corrected_scope == "shared.dyn") {
+          should_apply = true;
+        } else if (alloc_info->corrected_scope != alloc_info->original_scope) {
+          should_apply = true;
+        }
+
+        if (should_apply) {
+
+```
+
+```
+# 484
+      for (auto it : map) {
+          Var target_var = it.first;      
+          Layout target_layout = it.second; 
+
+          Buffer found_buffer;
+          if (buffer_data_to_buffer_.count(target_var)) {
+              found_buffer = buffer_data_to_buffer_[target_var];
+          } else {
+              for (auto const& kv : buffer_data_to_buffer_) {
+                  Var current_var = kv.first;
+                  Buffer current_buf = kv.second;
+                  if (current_var->name_hint == target_var->name_hint &&
+                      current_var->dtype == target_var->dtype) {
+                      if (StructuralEqual()(target_layout->InputShape(), current_buf->shape)) {
+                          found_buffer = current_buf;
+                          break;
+                      }
+                  }
+              }
+          }
+          if (!found_buffer.defined()) {
+              ICHECK(false) << "buffer " << target_var->name_hint << " is not found in the block";
+          }
+          ICHECK(StructuralEqual()(target_layout->InputShape(), found_buffer->shape));
+          annotated_layout_map_.Set(found_buffer, target_layout);
+      }
+```
 
